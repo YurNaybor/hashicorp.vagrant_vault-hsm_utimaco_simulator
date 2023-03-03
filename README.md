@@ -16,7 +16,7 @@ A mock `Vagrantfile` of [Utimaco HSM Simulator (aka Cryptoserver CP5)](https://h
 
 ## Usage & Workflow
 
-Place the archived simulator file (`CryptoServerCP5-SupportingCD-V5.1.1.1.zip`) in the directory `vm_files/`.
+Place the archived simulator file (`SecurityServerEvaluation-V4.50.0.2.zip`) in the directory `vm_files/`.
 
 Refer to the contents of **`Vagrantfile`** & directory: `cc.os.user-input` for complete details.
 

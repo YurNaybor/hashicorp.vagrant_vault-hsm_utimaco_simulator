@@ -28,7 +28,7 @@ groupadd -r -g 500 ${UGROUP} ;
 useradd  -r -g ${UGROUP} -d /opt/utimaco/hsm -s /sbin/nologin ${UUSER} ;
 usermod -L ${UUSER} ;
 
-sFIND=$(find -iname crypto*.zip) ;
+sFIND=$(find -iname security*.zip) ;
 
 if [[ ${sFIND} == '' ]] ; then
 	pERR 'ERROR: Utimaco CryptoServer CP5 .zip file not found.' ;
@@ -39,9 +39,9 @@ else
 		sPWD=${sFIND_PATH}${CRYPTO_INSTALL_PATH} ;
 		cp -R ${sPWD}/Administration/key /opt/utimaco/etc ;
 		cp ${sPWD}/Administration/csadm /opt/utimaco/bin ;
-		cp ${sPWD}/Crypto_APIs/CXI/bin/cxitool /opt/utimaco/bin ;
-		cp ${sPWD}/Crypto_APIs/PKCS11_R2/bin/p11tool2 /opt/utimaco/bin ;
-		cp ${sPWD}/Crypto_APIs/PKCS11_R2/lib/libcs_pkcs11_R2.so /opt/utimaco/lib64 ;
+		cp ${sPWD}/Administration/cxitool /opt/utimaco/bin ;
+		cp ${sPWD}/Administration/p11tool2 /opt/utimaco/bin ;
+		cp ${sPWD}/Crypto_APIs/PKCS11_R3/lib/libcs_pkcs11_R3.so /opt/utimaco/lib64 ;
 		cp ${sPWD}/../Simulator/sim5_linux/bin/bl_sim5 /opt/utimaco/hsm/bin ;
 		cp -R ${sPWD}/../Simulator/sim5_linux/devices /opt/utimaco/hsm ;
 		chown -R ${UUSER}:${UGROUP} /opt/utimaco/hsm/devices
@@ -115,24 +115,28 @@ fi ;
 
 printf '''[Global]
 Logging = 4
-Logpath = /var/log  #/pkcs11
+Logpath = /pkcs11
 Logsize = 100mb
 
-KeyStore=/root/plcs_ext_store.sdb
 SlotMultiSession = True
 
 # SlotCount = 10 #
+
+[KeyStorage]
+KeyStorageType = Legacy
+# The keystore must be usable by the users vagrant and vault..
+KeyStorageConfig = /pkcs11/plcs_ext_store.sdb
+
 
 [CryptoServer]
 Device = localhost
 
 [Slot]
 SlotNumber = 3
-# KeysExternal = true ; # // doesnt not work with simulator generates:
-# // ERROR: external keys not available in CC mode (`pkcs11/cs_pkcs11_R2.log`)
+KeysExternal = true
 # USR_0000="RSASign=/home/vagrant/MBK1part1.key"
-#ADMIN="RSASign=/opt/utimaco/etc/key/ADMIN_CP5.key"
-''' > /etc/utimaco/cs_pkcs11_R2.cfg ;
+#ADMIN="RSASign=/opt/utimaco/etc/key/ADMIN.key"
+''' > /etc/utimaco/cs_pkcs11_R3.cfg ;
 
 
 printf '''[Mechanism]
@@ -176,42 +180,43 @@ CKA_EXTRACTABLE = CK_FALSE
 source /opt/utimaco/etc/bashrc ;
 
 sMSG='' ; # // place-holder for errors
-p11tool2 Slot=3 Login=ADMIN,/opt/utimaco/etc/key/ADMIN_CP5.key InitToken=1234 1>&2>/dev/null;
+p11tool2 Slot=3 Login=ADMIN,/opt/utimaco/etc/key/ADMIN.key InitToken=123456789 ;
 if ! (($? == 0)) ; then sMSG+='ERROR: issue creating Slot 3\n' ; fi ;
-p11tool2 Slot=3 LoginSO=1234 InitPin=1234 1>&2>/dev/null ;
+p11tool2 Slot=3 LoginSO=123456789 InitPin=123456789 ;
 if ! (($? == 0)) ; then sMSG+='ERROR: issue initialising Slot 3\n' ; fi ;
-p11tool2 Slot=3 LoginUser=1234 GenerateKey=aes.key_template 1>&2>/dev/null;
-p11tool2 Slot=3 LoginUser=1234 GenerateKey=hmac.key_template 1>&2>/dev/null;
+p11tool2 Slot=3 LoginUser=123456789 GenerateKey=aes.key_template ;
+p11tool2 Slot=3 LoginUser=123456789 GenerateKey=hmac.key_template ;
 if ! (($? == 0)) ; then sMSG+='ERROR: labelling Slot 3' ; fi ;
 if (( ${#sMSG} == 0 )) ; then pOUT 'SUCCESS: created Slot 3 & initialised it.' ; fi ;
 if ! (( ${#sMSG} == 0 )) ; then pERR ${sMSG} ; fi ;
 
 pOUT 'READING CREATED Slot: 3 ...' ;
-p11tool2 Slot=3 LoginUser=1234 ListObjects ;
+p11tool2 Slot=3 LoginUser=123456789 ListObjects ;
 
 #pOUT 'CREATING Keys: MBK1part1.key,MBK1part2.key ...' ;
-#csadm LogonSign=ADMIN,/opt/utimaco/etc/key/ADMIN_CP5.key Key=MBK1part1.key,MBK1part2.key MBKGenerateKey=AES,32,2,2,MBK1 ;
+#csadm LogonSign=ADMIN,/opt/utimaco/etc/key/ADMIN.key Key=MBK1part1.key,MBK1part2.key MBKGenerateKey=AES,32,2,2,MBK1 ;
 
 # // other steps...
 
 csadm KeyType=RSA GenKey=vault_s003.key,"vault_s003" ;
 if ! (($? == 0)) ; then printf 'GENERATED: vault_s003.key\n' ; fi ;
 
-sMSG='' ;  # // reset error message
-cxitool LogonPass=USR_0003,1234 Spec=1 Group=SLOT_0003 KeyFile=vault_s003.key InitializeKey=PKCS-V1_5,false ;
-if ! (($? == 0)) ; then sMSG+='ERROR: InitializeKey on Group=SLOT_0003 - Spec=1' ; fi ;
-cxitool LogonPass=USR_0003,1234 Spec=2 Group=SLOT_0003 KeyFile=vault_s003.key InitializeKey=PKCS-V1_5,false ;
-if ! (($? == 0)) ; then sMSG+='ERROR: InitializeKey on Group=SLOT_0003 - Spec=2' ; fi ;
-if (( ${#sMSG} == 0 )) ; then pOUT 'SUCCESS: with InitializeKey on Group=SLOT_0003 - Spec=1 & Spec=2.' ; fi ;
-if ! (( ${#sMSG} == 0 )) ; then pERR ${sMSG} ; fi ;
-
-cxitool LogonPass=USR_0003,1234 Spec=1 Group=SLOT_0003 KeyFile=vault_s003.key AuthorizeKey=-1 ;
-if ! (($? == 0)) ; then sMSG+='ERROR: AutorizeKey on Group=SLOT_0003 - Spec=1' ; fi ;
-cxitool LogonPass=USR_0003,1234 Spec=2 Group=SLOT_0003 KeyFile=vault_s003.key AuthorizeKey=-1 ;
-if ! (($? == 0)) ; then sMSG+='ERROR: AuthorizeKey on Group=SLOT_0003 - Spec=2' ; fi ;
-if (( ${#sMSG} == 0 )) ; then pOUT 'SUCCESS: with AuthorizeKey on Group=SLOT_0003 - Spec=1 & Spec=2.' ; fi ;
-if ! (( ${#sMSG} == 0 )) ; then pERR ${sMSG} ; fi ;
-
-pOUT 'READING KeyInfo of Group=SLOT_0003 Spec=1 & Spec-2 ...' ;
-cxitool LogonPass=USR_0003,1234 Spec=1 Group=SLOT_0003 KeyInfo ;
-cxitool LogonPass=USR_0003,1234 Spec=2 Group=SLOT_0003 KeyInfo ;
+# cxitool from SecurityServer does not support "InitializeKey"..
+#sMSG='' ;  # // reset error message
+#cxitool LogonPass=USR_0003,123456789 Spec=1 Group=SLOT_0003 KeyFile=vault_s003.key InitializeKey=PKCS-V1_5,false ;
+#if ! (($? == 0)) ; then sMSG+='ERROR: InitializeKey on Group=SLOT_0003 - Spec=1' ; fi ;
+#cxitool LogonPass=USR_0003,123456789 Spec=2 Group=SLOT_0003 KeyFile=vault_s003.key InitializeKey=PKCS-V1_5,false ;
+#if ! (($? == 0)) ; then sMSG+='ERROR: InitializeKey on Group=SLOT_0003 - Spec=2' ; fi ;
+#if (( ${#sMSG} == 0 )) ; then pOUT 'SUCCESS: with InitializeKey on Group=SLOT_0003 - Spec=1 & Spec=2.' ; fi ;
+#if ! (( ${#sMSG} == 0 )) ; then pERR ${sMSG} ; fi ;
+#
+#cxitool LogonPass=USR_0003,123456789 Spec=1 Group=SLOT_0003 KeyFile=vault_s003.key AuthorizeKey=-1 ;
+#if ! (($? == 0)) ; then sMSG+='ERROR: AutorizeKey on Group=SLOT_0003 - Spec=1' ; fi ;
+#cxitool LogonPass=USR_0003,123456789 Spec=2 Group=SLOT_0003 KeyFile=vault_s003.key AuthorizeKey=-1 ;
+#if ! (($? == 0)) ; then sMSG+='ERROR: AuthorizeKey on Group=SLOT_0003 - Spec=2' ; fi ;
+#if (( ${#sMSG} == 0 )) ; then pOUT 'SUCCESS: with AuthorizeKey on Group=SLOT_0003 - Spec=1 & Spec=2.' ; fi ;
+#if ! (( ${#sMSG} == 0 )) ; then pERR ${sMSG} ; fi ;
+#
+#pOUT 'READING KeyInfo of Group=SLOT_0003 Spec=1 & Spec-2 ...' ;
+#cxitool LogonPass=USR_0003,123456789 Spec=1 Group=SLOT_0003 KeyInfo ;
+#cxitool LogonPass=USR_0003,123456789 Spec=2 Group=SLOT_0003 KeyInfo ;

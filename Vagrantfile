@@ -26,6 +26,11 @@ Vagrant.configure("2") do |config|
 	#config.vm.box_version = "10.4.0"  # // Debian tested version.
 	# // OS may be "ubuntu/bionic64" or "ubuntu/focal64" as well.
 
+	config.vm.provider "vmware_desktop" do |v|
+		v.vmx["memsize"] = "4096"  # // RAM / Memory
+		v.vmx["numvcpus"] = "1" # // CPU Cores / Threads
+	end
+
 	config.vm.provider "virtualbox" do |v|
 		v.memory = 4096  # // RAM / Memory
 		v.cpus = 1  # // CPU Cores / Threads

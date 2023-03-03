@@ -1,8 +1,8 @@
 # // seal stanza eg: seal "awkskms" { ...
 seal "pkcs11" {
-	lib		= "/opt/utimaco/lib64/libcs_pkcs11_R2.so"
+	lib		= "/opt/utimaco/lib64/libcs_pkcs11_R3.so"
 	slot		= "3"
-	pin		= "1234"
+	pin		= "123456789"
 	key_label	= "hsm:v1:vault"
 	hmac_key_label	= "hsm:v1:vault-hmac"
 	generate_key	= "true"

@@ -274,6 +274,9 @@ function sudoSetup()
 		pOUT "USER: ${USER_VAULT} - already present." ;
 	fi ;
 
+  # Adding user vault to group vagrant to be able to use the external keystore that was created by vagrant during provisioning."
+  gpasswd -a vault vagrant ;
+
 	# // Enable auto complete
 	set +e ;
 	vault -autocomplete-install 2>/dev/null && complete -C ${PATH_BINARY} vault 2>/dev/null ;
@@ -390,7 +393,7 @@ raw_storage_endpoint = true
 	if ! [[ -s ${SYSD_FILE} ]] && [[ ${SETUP,,} == *'server'* ]]; then
 		# // common Vault version systemd unit file
 		UNIT_SYSTEMD='[Unit]\nDescription="HashiCorp Vault - A tool for managing secrets"\nDocumentation=https://www.vaultproject.io/docs/\nRequires=network-online.target\nAfter=network-online.target\nConditionFileNotEmpty=/etc/vault.d/vault.hcl\nStartLimitIntervalSec=60\nStartLimitBurst=3\n\n[Service]\nUser=vault\nGroup=vault\nProtectSystem=full\nProtectHome=read-only\nPrivateTmp=yes\nPrivateDevices=yes\nSecureBits=keep-caps\nAmbientCapabilities=CAP_IPC_LOCK\nCapabilities=CAP_IPC_LOCK+ep\nCapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK\nNoNewPrivileges=yes\nExecStart=/usr/local/bin/vault server -config=/etc/vault.d/vault.hcl\nExecReload=/bin/kill --signal HUP $MAINPID\nKillMode=process\nKillSignal=SIGINT\nRestart=on-failure\nRestartSec=5\nTimeoutStopSec=30\nStartLimitInterval=60\nStartLimitIntervalSec=60\nStartLimitBurst=3\nLimitNOFILE=65536\nLimitMEMLOCK=infinity\n\n[Install]\nWantedBy=multi-user.target\n' ;
-		export PATH=${PATH}:/usr/local/bin ;  # // on Centos / RHEL needed. 
+		export PATH=${PATH}:/usr/local/bin ;  # // on Centos / RHEL needed.
 		# // Vault hsm / pkcs11 verison:
 		VVERSION=$(vault --version) ;
 		if [[ ${VVERSION} == *"ent.hsm"* ]] ; then
