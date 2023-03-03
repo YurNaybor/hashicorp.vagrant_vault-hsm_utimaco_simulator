@@ -274,8 +274,10 @@ function sudoSetup()
 		pOUT "USER: ${USER_VAULT} - already present." ;
 	fi ;
 
-  # Adding user vault to group vagrant to be able to use the external keystore that was created by vagrant during provisioning."
-  gpasswd -a vault vagrant ;
+	# Make sure vault and vagrant users can write the external keystore and pkcs11 log
+	gpasswd -a vault vagrant ;
+	chown -R :vagrant /pkcs11
+	chmod -R g+rwX /pkcs11
 
 	# // Enable auto complete
 	set +e ;

@@ -39,8 +39,8 @@ csadm GetState
 csadm ListFirmware
 csadm ListUser
 p11tool2 ListSlots=Status
-cxitool LogonPass=USR_0003,1234 Spec=1 Group=SLOT_0003 KeyInfo
-cxitool LogonPass=USR_0003,1234 Spec=2 Group=SLOT_0003 KeyInfo
+#cxitool LogonPass=USR_0003,123456789 Spec=1 Group=SLOT_0003 KeyInfo
+#cxitool LogonPass=USR_0003,123456789 Spec=2 Group=SLOT_0003 KeyInfo
 vault status
 # vault ...
 ```
